@@ -1,6 +1,6 @@
-# Franka Real-World Data Conversion for LingBot-VA
+ï»¿# Franka Real-World Data Conversion for LingBot-VA
 
-Õâ¸öÄ¿Â¼²¹ÆëÁË README ÀïÕæ»úÊı¾İ×¼±¸È±Ê§µÄ 3 ¸ö²½Öè£¬Õë¶ÔÄãÏÖÔÚÕâÀàµ¥±Û Franka Â¼ÖÆÊı¾İ£º
+è¿™ä¸ªç›®å½•è¡¥é½äº† README é‡ŒçœŸæœºæ•°æ®å‡†å¤‡ç¼ºå¤±çš„ 3 ä¸ªæ­¥éª¤ï¼Œé’ˆå¯¹ä½ ç°åœ¨è¿™ç±»å•è‡‚ Franka å½•åˆ¶æ•°æ®ï¼š
 
 ```text
 recordings/
@@ -12,68 +12,68 @@ recordings/
     states.npz
 ```
 
-`states.npz` ÀïÄ¬ÈÏ¶ÁÈ¡ÕâĞ©×Ö¶Î£º
+`states.npz` é‡Œé»˜è®¤è¯»å–è¿™äº›å­—æ®µï¼š
 
 - `robot/joint_positions`: `[T, 7]`
-- `robot/joint_velocities`: `[T, 7]`£¬Èç¹ûÃ»ÓĞ»á×Ô¶¯²¹ 0
+- `robot/joint_velocities`: `[T, 7]`ï¼Œå¦‚æœæ²¡æœ‰ä¼šè‡ªåŠ¨è¡¥ 0
 - `robot/ee_pose`: `[T, 7]`
-- `robot/robot_timestamp`: `[T]`£¬Èç¹ûÃ»ÓĞ»á°´ `--fallback-fps` Éú³É
+- `robot/robot_timestamp`: `[T]`ï¼Œå¦‚æœæ²¡æœ‰ä¼šæŒ‰ `--fallback-fps` ç”Ÿæˆ
 - `gripper/width`: `[T]`
 
-## 1. Ä¿Â¼ËµÃ÷
+## 1. ç›®å½•è¯´æ˜
 
 - `Convert/franka/convert_to_lerobot.py`
-  - Step 1£¬°ÑÔ­Ê¼Â¼ÖÆ×ª³É±¾µØ LeRobot v2.1 Êı¾İ¼¯¡£
+  - Step 1ï¼ŒæŠŠåŸå§‹å½•åˆ¶è½¬æˆæœ¬åœ° LeRobot v2.1 æ•°æ®é›†ã€‚
 - `Convert/franka/add_action_config.py`
-  - Step 2£¬¸ø `meta/episodes.jsonl` Ôö¼Ó `action_config`¡£
+  - Step 2ï¼Œç»™ `meta/episodes.jsonl` å¢åŠ  `action_config`ã€‚
 - `Convert/franka/extract_wan_latents.py`
-  - Step 3£¬°´ `action_config` ·Ö¶Î³éÖ¡²¢ÌáÈ¡ Wan2.2 latent¡£
+  - Step 3ï¼ŒæŒ‰ `action_config` åˆ†æ®µæŠ½å¸§å¹¶æå– Wan2.2 latentã€‚
 - `wan_va/configs/va_franka_single_arm_train_cfg.py`
-  - ĞÂÔöµÄµ¥±Û Franka ÑµÁ·ÅäÖÃ£¬×Ô¶¯¶ÁÈ¡×ª»»ºóÊı¾İ¼¯ÀïµÄÏà»ú¼ü¡¢¶¯×÷Í³¼ÆºÍ latent ·Ö±æÂÊ¡£
+  - æ–°å¢çš„å•è‡‚ Franka è®­ç»ƒé…ç½®ï¼Œè‡ªåŠ¨è¯»å–è½¬æ¢åæ•°æ®é›†é‡Œçš„ç›¸æœºé”®ã€åŠ¨ä½œç»Ÿè®¡å’Œ latent åˆ†è¾¨ç‡ã€‚
 
-## 2. Ä¬ÈÏ×Ö¶ÎÓ³Éä
+## 2. é»˜è®¤å­—æ®µæ˜ å°„
 
-### 2.1 Ïà»úÓ³Éä
+### 2.1 ç›¸æœºæ˜ å°„
 
-Ä¬ÈÏ°ÑÔ­Ê¼ÈıÂ·Ïà»úÓ³Éä³É£º
+é»˜è®¤æŠŠåŸå§‹ä¸‰è·¯ç›¸æœºæ˜ å°„æˆï¼š
 
 - `left_camera -> observation.images.left_camera`
 - `right_camera -> observation.images.right_camera`
 - `wrist_camera -> observation.images.wrist_camera`
 
-Èç¹ûÄãºóÃæÏë¸ÄÃû×Ö£¬¿ÉÒÔÔÚ Step 1 ÀïÓÃ `--camera-mapping` ¸²¸Ç¡£
+å¦‚æœä½ åé¢æƒ³æ”¹åå­—ï¼Œå¯ä»¥åœ¨ Step 1 é‡Œç”¨ `--camera-mapping` è¦†ç›–ã€‚
 
 ### 2.2 observation.state
 
-Ä¬ÈÏ±£´æ³É£º
+é»˜è®¤ä¿å­˜æˆï¼š
 
 ```text
 [joint_positions(7), ee_pose(7), gripper_width(1)]
 ```
 
-×Ü¹² 15 Î¬¡£
+æ€»å…± 15 ç»´ã€‚
 
 ### 2.3 action
 
-Ä¬ÈÏ±£´æ³Éµ¥±Û compact action£º
+é»˜è®¤ä¿å­˜æˆå•è‡‚ compact actionï¼š
 
 ```text
 [ee_pose(t+1), joint_positions(t+1), gripper_width(t+1)]
 ```
 
-Ò²ÊÇ 15 Î¬£¬Ä¬ÈÏ `--action-offset 1`£¬Ò²¾ÍÊÇÓÃÏÂÒ»Ê±¿Ì×´Ì¬µ±¼à¶½Ä¿±ê¡£
+ä¹Ÿæ˜¯ 15 ç»´ï¼Œé»˜è®¤ `--action-offset 1`ï¼Œä¹Ÿå°±æ˜¯ç”¨ä¸‹ä¸€æ—¶åˆ»çŠ¶æ€å½“ç›‘ç£ç›®æ ‡ã€‚
 
-ÑµÁ·Ê±Õâ 15 Î¬»á×Ô¶¯¶ÔÆëµ½ LingBot-VA µÄ±ê×¼ 30 Î¬¶¯×÷²¼¾ÖÀï£¬Ê¹ÓÃµÄÊÇ×ó±Û²ÛÎ»£º
+è®­ç»ƒæ—¶è¿™ 15 ç»´ä¼šè‡ªåŠ¨å¯¹é½åˆ° LingBot-VA çš„æ ‡å‡† 30 ç»´åŠ¨ä½œå¸ƒå±€é‡Œï¼Œä½¿ç”¨çš„æ˜¯å·¦è‡‚æ§½ä½ï¼š
 
 - `0:7` -> left arm eef
 - `14:21` -> left arm joints
 - `28` -> left gripper
 
-ÆäÓàÎ¬¶È×Ô¶¯²¹ 0¡£
+å…¶ä½™ç»´åº¦è‡ªåŠ¨è¡¥ 0ã€‚
 
 ## 3. Step 1: Convert to LeRobot
 
-ÏÈ½øÈë²Ö¿â¸ùÄ¿Â¼£¬È»ºóÖ´ĞĞ£º
+å…ˆè¿›å…¥ä»“åº“æ ¹ç›®å½•ï¼Œç„¶åæ‰§è¡Œï¼š
 
 ```bash
 python Convert/franka/convert_to_lerobot.py \
@@ -83,7 +83,7 @@ python Convert/franka/convert_to_lerobot.py \
   --overwrite
 ```
 
-Êä³öÄ¿Â¼»áÉú³É£º
+è¾“å‡ºç›®å½•ä¼šç”Ÿæˆï¼š
 
 ```text
 2025-10-01_PickBlueonRed_lerobot/
@@ -98,12 +98,12 @@ python Convert/franka/convert_to_lerobot.py \
     franka_meta.json
 ```
 
-ÆäÖĞ£º
+å…¶ä¸­ï¼š
 
-- `action_norm_stats.json` »á±£´æ¶ÔÆëµ½ 30 Î¬ºóµÄ `q01/q99`£¬ÑµÁ·ÅäÖÃ»áÖ±½Ó¶ÁÈ¡¡£
-- `franka_meta.json` »á±£´æÏà»ú¼üºÍ¶¯×÷²ÛÎ»Ó³Éä£¬ÑµÁ·ÅäÖÃÒ²»áÖ±½Ó¶ÁÈ¡¡£
+- `action_norm_stats.json` ä¼šä¿å­˜å¯¹é½åˆ° 30 ç»´åçš„ `q01/q99`ï¼Œè®­ç»ƒé…ç½®ä¼šç›´æ¥è¯»å–ã€‚
+- `franka_meta.json` ä¼šä¿å­˜ç›¸æœºé”®å’ŒåŠ¨ä½œæ§½ä½æ˜ å°„ï¼Œè®­ç»ƒé…ç½®ä¹Ÿä¼šç›´æ¥è¯»å–ã€‚
 
-Èç¹ûÄãÏë¸ÄÏà»ú¼ü£¬¿ÉÒÔÕâÑù£º
+å¦‚æœä½ æƒ³æ”¹ç›¸æœºé”®ï¼Œå¯ä»¥è¿™æ ·ï¼š
 
 ```bash
 python Convert/franka/convert_to_lerobot.py \
@@ -118,9 +118,9 @@ python Convert/franka/convert_to_lerobot.py \
 
 ## 4. Step 2: Add action_config
 
-### 4.1 µ¥¶Î¶¯×÷£¬Õû¶ÎÒ»¾ä»°
+### 4.1 å•æ®µåŠ¨ä½œï¼Œæ•´æ®µä¸€å¥è¯
 
-Èç¹ûÃ¿Ìõ episode ¾ÍÊÇÒ»¶ÎÍêÕû¶¯×÷£¬Ö±½ÓÖ´ĞĞ£º
+å¦‚æœæ¯æ¡ episode å°±æ˜¯ä¸€æ®µå®Œæ•´åŠ¨ä½œï¼Œç›´æ¥æ‰§è¡Œï¼š
 
 ```bash
 python Convert/franka/add_action_config.py \
@@ -129,7 +129,7 @@ python Convert/franka/add_action_config.py \
   --backup
 ```
 
-ÕâÑùÃ¿¸ö episode ¶¼»á±ä³É£º
+è¿™æ ·æ¯ä¸ª episode éƒ½ä¼šå˜æˆï¼š
 
 ```json
 {
@@ -146,9 +146,9 @@ python Convert/franka/add_action_config.py \
 }
 ```
 
-### 4.2 ¶à¶Î¶¯×÷
+### 4.2 å¤šæ®µåŠ¨ä½œ
 
-Èç¹ûÒ»Ìõ episode ÀïÒªÇĞ³É¶à¶Î£¬¾Í×Ô¼º×¼±¸Ò»¸ö JSON£¬±ÈÈç `segments.json`£º
+å¦‚æœä¸€æ¡ episode é‡Œè¦åˆ‡æˆå¤šæ®µï¼Œå°±è‡ªå·±å‡†å¤‡ä¸€ä¸ª JSONï¼Œæ¯”å¦‚ `segments.json`ï¼š
 
 ```json
 {
@@ -160,7 +160,7 @@ python Convert/franka/add_action_config.py \
 }
 ```
 
-È»ºóÖ´ĞĞ£º
+ç„¶åæ‰§è¡Œï¼š
 
 ```bash
 python Convert/franka/add_action_config.py \
@@ -169,7 +169,7 @@ python Convert/franka/add_action_config.py \
   --backup
 ```
 
-Ò²Ö§³Ö¶ÔÄ³Ò»Ìõ episode µ¥¶À¸²¸Ç£º
+ä¹Ÿæ”¯æŒå¯¹æŸä¸€æ¡ episode å•ç‹¬è¦†ç›–ï¼š
 
 ```json
 {
@@ -185,61 +185,170 @@ python Convert/franka/add_action_config.py \
 
 ## 5. Step 3: Extract Wan2.2 latents
 
-### 5.1 ÏÈËµÃ÷ Wan backend
+### 5.1 å…ˆè¯´æ˜ Wan backend
 
-`extract_wan_latents.py` Ö§³ÖÁ½ÖÖÄ£Ê½£º
+`extract_wan_latents.py` æ”¯æŒä¸¤ç§æ¨¡å¼ï¼š
 
 - `--wan-backend official`
-  - ¶ÔÓ¦ÄãÏÖÔÚ¸øµÄÕâÖÖÔ­Ê¼ Wan2.2 checkpoint ²¼¾Ö£¬Ä¬ÈÏ¾ÍÊÇÕâ¸ö¡£
+  - é€‚ç”¨äºå®˜æ–¹ Wan2.2 æƒé‡å¸ƒå±€ï¼Œæˆ–è€…åƒä½ ç°åœ¨è¿™ä»½ `Wan2.2-TI2V-5B` è¿™ç§æ··åˆæ ¼å¼ç›®å½•ï¼š
+    - æ ¹ç›®å½•æœ‰ `Wan2.2_VAE.pth`
+    - æ ¹ç›®å½•æœ‰ `models_t5_umt5-xxl-enc-bf16.pth`
+    - æ ¹ç›®å½•æœ‰ `diffusion_pytorch_model-*.safetensors`
+    - æœ‰ `google/umt5-xxl`
+  - è¿™ä¸ªæ¨¡å¼é™¤äº†æƒé‡ï¼Œè¿˜ä¾èµ– Wan2.2 æºç é‡Œçš„ `wan` Python åŒ…ï¼Œæ‰€ä»¥å½“å‰ç¯å¢ƒé‡Œå¿…é¡»èƒ½ `import wan`ã€‚
 - `--wan-backend diffusers`
-  - Ö»ÊÊÓÃÓÚÒÑ¾­ÕûÀí³É `vae/`, `text_encoder/`, `tokenizer/` ×ÓÄ¿Â¼µÄ diffusers ¸ñÊ½Ä£ĞÍ¡£
+  - åªé€‚ç”¨äºå·²ç»æ•´ç†æˆå®Œæ•´ diffusers ç›®å½•çš„æ¨¡å‹ï¼Œä¹Ÿå°±æ˜¯ `--wan-model-root` ä¸‹è‡³å°‘æœ‰ï¼š
 
-### 5.2 ÓÃÄãµ±Ç°¸øµÄ Wan Â·¾¶
+```text
+vae/
+text_encoder/
+tokenizer/
+```
 
-Äã¸øµÄÂ·¾¶ÊÇ£º
+å¦‚æœåªæœ‰ï¼š
+
+```text
+Wan2.2_VAE.pth
+models_t5_umt5-xxl-enc-bf16.pth
+diffusion_pytorch_model-*.safetensors
+google/umt5-xxl
+```
+
+é‚£è¿˜ä¸èƒ½ç›´æ¥èµ° `diffusers` backendã€‚
+
+### 5.2 ç”¨ä½ å½“å‰ç»™çš„ Wan è·¯å¾„
+
+ä½ å½“å‰çš„æ¨¡å‹ç›®å½•æ˜¯ï¼š
 
 ```text
 /mnt/hwdata/wangsen/WAM/Ckpts/Wan2.2-TI2V-5B
 ```
 
-Èç¹ûÕâ¸öÄ¿Â¼±¾Éí¾ÍÄÜ `import wan`£¬¿ÉÒÔÖ±½ÓÕâÑùÅÜ£º
+æ ¹æ®æˆ‘ä»¬å®é™…æ’æŸ¥ï¼Œè¿™ä¸ªç›®å½•ä¸æ˜¯å®Œæ•´ diffusers æ ¼å¼ï¼Œè€Œæ˜¯æ··åˆæ ¼å¼ checkpointï¼š
+
+- transformer æƒé‡æ˜¯ diffusers é£æ ¼
+- VAE å’Œ text encoder è¿˜æ˜¯å®˜æ–¹å•æ–‡ä»¶æƒé‡
+- ç›®å½•é‡Œæ²¡æœ‰ `vae/`, `text_encoder/`, `tokenizer/`
+- ç›®å½•é‡Œä¹Ÿæ²¡æœ‰ Wan2.2 æºç åŒ… `wan/`
+
+æ‰€ä»¥è¿™ä¸€ä»½æ¨¡å‹ç›®å½•ï¼š
+
+- ä¸èƒ½ç›´æ¥ç”¨ `--wan-backend diffusers`
+- ä¹Ÿä¸èƒ½æŠŠ `--wan-code-root` æŒ‡åˆ°è¿™ä¸ª checkpoint ç›®å½•æœ¬èº«
+
+æ­£ç¡®æ–¹å¼æ˜¯ï¼š
+
+- `--wan-model-root` ç»§ç»­æŒ‡å‘ checkpoint ç›®å½•
+- `--wan-backend official`
+- `--wan-code-root` æ”¹æˆçœŸæ­£çš„ Wan2.2 æºç æ ¹ç›®å½•ï¼Œä¹Ÿå°±æ˜¯é‡Œé¢èƒ½çœ‹åˆ° `wan/` æ–‡ä»¶å¤¹çš„åœ°æ–¹
+
+ä¾‹å¦‚ä½ æŠŠ Wan2.2 æºç æ”¾åœ¨ï¼š
+
+```text
+/mnt/hwdata/wangsen/WAM/Wan2.2
+```
+
+å¹¶ä¸”è¿™ä¸ªç›®å½•ä¸‹æœ‰ï¼š
+
+```text
+/mnt/hwdata/wangsen/WAM/Wan2.2/wan
+```
+
+é‚£åº”è¯¥è¿™æ ·è·‘ï¼š
 
 ```bash
 python Convert/franka/extract_wan_latents.py \
-  --dataset-root /mnt/hwdata/wangsen/Real_World/Data/2025-10-01_PickBlueonRed_lerobot \
+  --dataset-root /mnt/hwdata/wangsen/WAM/lingbot-va/DATA/PickBlueonRed_lerobot \
   --wan-model-root /mnt/hwdata/wangsen/WAM/Ckpts/Wan2.2-TI2V-5B \
   --wan-backend official \
-  --wan-code-root /mnt/hwdata/wangsen/WAM/Ckpts/Wan2.2-TI2V-5B \
+  --wan-code-root /mnt/hwdata/wangsen/WAM/Wan2.2 \
   --height 224 \
   --width 320 \
   --target-fps 10
 ```
 
-Èç¹û checkpoint ºÍ Wan2.2 Ô´ÂëÄ¿Â¼²»ÊÇÍ¬Ò»¸öÎ»ÖÃ£¬¾Í°Ñ `--wan-code-root` ¸Ä³ÉÕæÕı°üº¬ `wan/` Python °üµÄÔ´Âë¸ùÄ¿Â¼¡£
+### 5.3 éœ€è¦ä¸è¦è¿›å…¥ Wan ç›®å½•å®‰è£…ç¯å¢ƒ
 
-½Å±¾»á¶îÍâÉú³É£º
+è¦ç‚¹ä¸æ˜¯å¿…é¡»åœ¨ Wan ç›®å½•é‡Œè¿è¡Œå‘½ä»¤ï¼Œè€Œæ˜¯ï¼š
+
+- ä½ æ‰§è¡Œ `extract_wan_latents.py` çš„é‚£ä¸ª Python ç¯å¢ƒé‡Œï¼Œå¿…é¡»èƒ½ `import wan`
+
+æœ€ç¨³çš„åšæ³•æ˜¯ï¼š
+
+1. å‡†å¤‡ Wan2.2 æºç 
+
+```bash
+cd /mnt/hwdata/wangsen/WAM
+git clone https://github.com/Wan-Video/Wan2.2.git
+```
+
+2. è¿›å…¥ Wan2.2 æºç ç›®å½•ï¼Œåœ¨å½“å‰ç¯å¢ƒé‡Œå®‰è£…å®ƒéœ€è¦çš„ä¾èµ–
+
+```bash
+cd /mnt/hwdata/wangsen/WAM/Wan2.2
+pip install -r requirements.txt
+```
+
+3. è®©å½“å‰ç¯å¢ƒèƒ½æ‰¾åˆ° `wan` åŒ…
+
+æ¨èå…ˆä¸´æ—¶åŠ  `PYTHONPATH`ï¼š
+
+```bash
+export PYTHONPATH=/mnt/hwdata/wangsen/WAM/Wan2.2:$PYTHONPATH
+python -c "import wan; print(wan.__file__)"
+```
+
+å¦‚æœè¿™æ¡å‘½ä»¤èƒ½æ‰“å°å‡ºè·¯å¾„ï¼Œè¯´æ˜æºç å¯¼å…¥å·²ç»æ­£å¸¸ã€‚
+
+4. å†å›åˆ° `lingbot-va` æ‰§è¡Œ latent æå–
+
+```bash
+cd /mnt/hwdata/wangsen/WAM/lingbot-va
+python Convert/franka/extract_wan_latents.py \
+  --dataset-root /mnt/hwdata/wangsen/WAM/lingbot-va/DATA/PickBlueonRed_lerobot \
+  --wan-model-root /mnt/hwdata/wangsen/WAM/Ckpts/Wan2.2-TI2V-5B \
+  --wan-backend official \
+  --wan-code-root /mnt/hwdata/wangsen/WAM/Wan2.2 \
+  --height 224 \
+  --width 320 \
+  --target-fps 10
+```
+
+### 5.4 å¦‚ä½•å¿«é€Ÿåˆ¤æ–­è‡ªå·±è¯¥ç”¨å“ªç§ backend
+
+- ç”¨ `official`
+  - æ¨¡å‹ç›®å½•é‡Œæœ‰ `Wan2.2_VAE.pth`ã€`models_t5_umt5-xxl-enc-bf16.pth`
+  - æ²¡æœ‰ `vae/`ã€`text_encoder/`ã€`tokenizer/`
+  - éœ€è¦é¢å¤–æä¾› Wan2.2 æºç ç›®å½•å¹¶ç¡®ä¿ `import wan` æˆåŠŸ
+- ç”¨ `diffusers`
+  - æ¨¡å‹ç›®å½•é‡Œå·²ç»æœ‰ `vae/`ã€`text_encoder/`ã€`tokenizer/`
+  - ä¸ä¾èµ–å®˜æ–¹ `wan` æºç åŒ…
+
+ä½ å½“å‰è¿™ä»½ `/mnt/hwdata/wangsen/WAM/Ckpts/Wan2.2-TI2V-5B`ï¼Œåº”å½“ä½¿ç”¨ `official`ã€‚
+
+è„šæœ¬ä¼šé¢å¤–ç”Ÿæˆï¼š
 
 - `latents/chunk-xxx/<camera_key>/episode_xxxxxx_start_end.pth`
 - `empty_emb.pt`
 - `meta/latent_config.json`
 
-## 6. ÑµÁ·
+## 6. è®­ç»ƒ
 
-ĞÂÔöµÄÑµÁ·ÅäÖÃÃûÊÇ£º
+æ–°å¢çš„è®­ç»ƒé…ç½®åæ˜¯ï¼š
 
 ```text
 franka_single_arm_train
 ```
 
-Õâ¸öÅäÖÃ»á×Ô¶¯´ÓÄãµÄÊı¾İ¼¯Àï¶ÁÈ¡£º
+è¿™ä¸ªé…ç½®ä¼šè‡ªåŠ¨ä»ä½ çš„æ•°æ®é›†é‡Œè¯»å–ï¼š
 
 - `meta/franka_meta.json`
 - `meta/action_norm_stats.json`
 - `meta/latent_config.json`
 
-ËùÒÔÑµÁ·Ç°Ö»ĞèÒª°ÑÂ·¾¶»·¾³±äÁ¿Éè¶Ô¡£
+æ‰€ä»¥è®­ç»ƒå‰åªéœ€è¦æŠŠè·¯å¾„ç¯å¢ƒå˜é‡è®¾å¯¹ã€‚
 
-### 6.1 ×îĞ¡ÑµÁ·ÃüÁî
+### 6.1 æœ€å°è®­ç»ƒå‘½ä»¤
 
 ```bash
 export LINGBOT_FRANKA_DATASET_PATH=/mnt/hwdata/wangsen/Real_World/Data/2025-10-01_PickBlueonRed_lerobot
@@ -248,7 +357,7 @@ export LINGBOT_WAN22_MODEL_PATH=/mnt/hwdata/wangsen/WAM/Ckpts/Wan2.2-TI2V-5B
 NGPU=8 CONFIG_NAME=franka_single_arm_train bash script/run_va_posttrain.sh
 ```
 
-### 6.2 ³£ÓÃ¿Éµ÷»·¾³±äÁ¿
+### 6.2 å¸¸ç”¨å¯è°ƒç¯å¢ƒå˜é‡
 
 ```bash
 export LINGBOT_FRANKA_BATCH_SIZE=1
@@ -258,29 +367,33 @@ export LINGBOT_FRANKA_LR=1e-5
 export LINGBOT_FRANKA_LOAD_WORKER=8
 ```
 
-## 7. ÒÀÀµ½¨Òé
+## 7. ä¾èµ–å»ºè®®
 
-½¨Òé±£Ö¤ÕâĞ©ÒÀÀµ¿ÉÓÃ£º
+å»ºè®®ä¿è¯è¿™äº›ä¾èµ–å¯ç”¨ï¼š
 
 ```bash
 pip install pyarrow imageio[ffmpeg] pillow tqdm lerobot==0.3.3 diffusers==0.36.0 transformers==4.55.2
 ```
 
-Èç¹ûÄãÓÃ `official` backend£¬»¹ĞèÒª±¾µØ Wan2.2 Ô´ÂëÄÜ±» Python µ¼Èë¡£
+å¦‚æœä½ ç”¨ `official` backendï¼Œè¿˜éœ€è¦ï¼š
 
-## 8. ÏÖÔÚÕâÌ×½Å±¾Ä¬ÈÏ¼ÙÉè
+- æœ¬åœ°æœ‰ Wan2.2 æºç 
+- å½“å‰ç¯å¢ƒé‡Œèƒ½ `import wan`
+- ä¸€èˆ¬è¿˜éœ€è¦å…ˆåœ¨ Wan2.2 æºç ç›®å½•é‡Œå®‰è£…å®ƒè‡ªå·±çš„ä¾èµ–
 
-- ÄãÊÇµ¥±Û Franka¡£
-- ÑµÁ·¶¯×÷Ê¹ÓÃ `ee_pose + joint_positions + gripper_width`¡£
-- `action[t]` Ä¬ÈÏÈ¡ `t+1` Ê±¿ÌÄ¿±ê¡£
-- `episodes.jsonl` Ä¬ÈÏ°´Õû¶Îµ¥¶¯×÷´¦Àí£¬³ı·ÇÄãÌá¹© `segments.json`¡£
-- latent ÌáÈ¡Ä¬ÈÏ°ÑÊÓÆµ resize µ½ `224x320`¡¢²ÉÑùµ½ `10 fps`¡£
+## 8. ç°åœ¨è¿™å¥—è„šæœ¬é»˜è®¤å‡è®¾
 
-Èç¹ûÄãºóÃæÒª¸Ä³É£º
+- ä½ æ˜¯å•è‡‚ Frankaã€‚
+- è®­ç»ƒåŠ¨ä½œä½¿ç”¨ `ee_pose + joint_positions + gripper_width`ã€‚
+- `action[t]` é»˜è®¤å– `t+1` æ—¶åˆ»ç›®æ ‡ã€‚
+- `episodes.jsonl` é»˜è®¤æŒ‰æ•´æ®µå•åŠ¨ä½œå¤„ç†ï¼Œé™¤éä½ æä¾› `segments.json`ã€‚
+- latent æå–é»˜è®¤æŠŠè§†é¢‘ resize åˆ° `224x320`ã€é‡‡æ ·åˆ° `10 fps`ã€‚
 
-- Ö»ÓÃ `ee_pose + gripper`
-- action ¸Ä³É delta ¶ø²»ÊÇ next-state
-- ¸ÄÏà»ú²¼¾Ö»ò·Ö±æÂÊ
-- °´ÓïÑÔÄ£°åÅúÁ¿Éú³É¸üÏ¸µÄ action_text
+å¦‚æœä½ åé¢è¦æ”¹æˆï¼š
 
-¿ÉÒÔÔÚÕâÌ×½Å±¾ÉÏ¼ÌĞø¸Ä£¬²»ĞèÒªÔÙÖØĞ´ÕûÌõÁ´Â·¡£
+- åªç”¨ `ee_pose + gripper`
+- action æ”¹æˆ delta è€Œä¸æ˜¯ next-state
+- æ”¹ç›¸æœºå¸ƒå±€æˆ–åˆ†è¾¨ç‡
+- æŒ‰è¯­è¨€æ¨¡æ¿æ‰¹é‡ç”Ÿæˆæ›´ç»†çš„ action_text
+
+å¯ä»¥åœ¨è¿™å¥—è„šæœ¬ä¸Šç»§ç»­æ”¹ï¼Œä¸éœ€è¦å†é‡å†™æ•´æ¡é“¾è·¯ã€‚
