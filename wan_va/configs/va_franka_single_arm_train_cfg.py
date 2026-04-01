@@ -26,7 +26,8 @@ def _build_inverse_index(action_dim: int, used_action_channel_ids: list[int]) ->
 va_franka_single_arm_train_cfg = EasyDict(__name__="Config: VA franka single arm train")
 va_franka_single_arm_train_cfg.update(va_franka_cfg)
 
-dataset_path = os.getenv("LINGBOT_FRANKA_DATASET_PATH", "/path/to/converted/franka_lerobot_dataset")
+# Replace this fallback path if you convert a different Franka dataset.
+dataset_path = os.getenv("LINGBOT_FRANKA_DATASET_PATH", "/mnt/hwdata/wangsen/WAM/lingbot-va/DATA/PickBlueonRed_lerobot")
 franka_meta = _load_json_if_exists(os.path.join(dataset_path, "meta", "franka_meta.json")) or {}
 latent_meta = _load_json_if_exists(os.path.join(dataset_path, "meta", "latent_config.json")) or {}
 norm_stat_path = os.getenv(
@@ -54,6 +55,7 @@ va_franka_single_arm_train_cfg.gradient_accumulation_steps = int(
 )
 va_franka_single_arm_train_cfg.num_steps = int(os.getenv("LINGBOT_FRANKA_NUM_STEPS", "50000"))
 
+# Replace this path if you move to a different pretrained LingBot-VA base checkpoint.
 va_franka_single_arm_train_cfg.wan22_pretrained_model_name_or_path = os.getenv(
     "LINGBOT_WAN22_MODEL_PATH",
     va_franka_cfg.wan22_pretrained_model_name_or_path,
