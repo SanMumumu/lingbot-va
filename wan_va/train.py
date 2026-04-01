@@ -47,6 +47,25 @@ from dataset import MultiLatentLeRobotDataset
 import gc
 
 
+def resolve_transformer_path(model_root: str) -> str:
+    transformer_subdir = os.path.join(model_root, 'transformer')
+    if os.path.isdir(transformer_subdir):
+        return transformer_subdir
+
+    config_path = os.path.join(model_root, 'config.json')
+    single_file = os.path.join(model_root, 'diffusion_pytorch_model.safetensors')
+    sharded_index = os.path.join(model_root, 'diffusion_pytorch_model.safetensors.index.json')
+    first_shard = os.path.join(model_root, 'diffusion_pytorch_model-00001-of-00003.safetensors')
+    if os.path.exists(config_path) and (
+        os.path.exists(single_file)
+        or os.path.exists(sharded_index)
+        or os.path.exists(first_shard)
+    ):
+        return model_root
+
+    return transformer_subdir
+
+
 class Trainer:
     def __init__(self, config):
         if config.enable_wandb and config.rank == 0:
@@ -75,11 +94,11 @@ class Trainer:
         logger.info("Loading transformer...")
 
         if hasattr(config, 'resume_from') and config.resume_from:
-            transformer_path = os.path.join(config.resume_from, 'transformer')
+            transformer_path = resolve_transformer_path(config.resume_from)
             if config.rank == 0:
                 logger.info(f"Resuming from checkpoint: {transformer_path}")
         else:
-            transformer_path = os.path.join(config.wan22_pretrained_model_name_or_path, 'transformer')
+            transformer_path = resolve_transformer_path(config.wan22_pretrained_model_name_or_path)
 
         self.transformer = load_transformer(
             transformer_path,
