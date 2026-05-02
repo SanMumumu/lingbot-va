@@ -9,17 +9,17 @@ MASTER_PORT=${MASTER_PORT:-"29501"}
 PORT=${PORT:-"1106"}
 LOG_RANK=${LOG_RANK:-"0"}
 TORCHFT_LIGHTHOUSE=${TORCHFT_LIGHTHOUSE:-"http://localhost:29510"}
-CONFIG_NAME=${CONFIG_NAME:-"robotwin_train"}
+CONFIG_NAME=${CONFIG_NAME:-"robotwin_train"} # robotwin_train, libero_train
 
 overrides=""
 if [ $# -ne 0 ]; then
     overrides="$*"
 fi
 
-export WANDB_API_KEY="your key"
-export WANDB_BASE_URL="your url"
-export WANDB_TEAM_NAME="your team name"
-export WANDB_PROJECT="your project"
+export WANDB_API_KEY="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"
+export WANDB_BASE_URL="https://api.wandb.ai"
+export WANDB_TEAM_NAME="sanmumumu"
+export WANDB_PROJECT="robomme_training"
 
 ## node setting
 num_gpu=${NGPU}

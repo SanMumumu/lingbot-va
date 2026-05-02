@@ -8,8 +8,7 @@ va_franka_cfg = EasyDict(__name__='Config: VA franka')
 va_franka_cfg.update(va_shared_cfg)
 va_shared_cfg.infer_mode = 'server'
 
-# Replace this path if you move to a different pretrained LingBot-VA base checkpoint.
-va_franka_cfg.wan22_pretrained_model_name_or_path = "/mnt/hwdata/wangsen/WAM/Ckpts/Robbyant/lingbot-va-base"
+va_franka_cfg.wan22_pretrained_model_name_or_path = "/path/to/pretrained/model"
 
 va_franka_cfg.attn_window = 30
 va_franka_cfg.frame_chunk_size = 4

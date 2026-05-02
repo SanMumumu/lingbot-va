@@ -19,6 +19,30 @@ https://github.com/user-attachments/assets/cec7b7a6-953b-4fa4-8f1a-47efc1fce547
 
 
 
+## Table of Contents
+
+- [News](#-news)
+- [Model Download](#-model-download)
+- [Quick Start](#️-quick-start)
+  - [Installation](#installation)
+  - [attn_mode Configuration](#️-important-attn_mode-configuration)
+  - [Deploying LingBot-VA for Inference](#deploying-lingbot-va-for-inference)
+    - [Evaluation on RoboTwin-2.0](#evaluation-on-robotwin-20)
+    - [Evaluation on LIBERO](#evaluation-on-libero)
+    - [Run Image to Video-Action Generation](#run-image-to-video-action-generation)
+  - [Post-Training LingBot-VA](#post-training-lingbot-va)
+    - [Data Preparation](#data-preparation)
+    - [Custom Dataset Preparation](#custom-dataset-preparation)
+    - [Training](#training)
+- [Performance](#-performance)
+  - [Simulation Evaluation](#simulation-evaluation)
+  - [Real-world Deployment](#real-world-deployment)
+- [License](#-license)
+- [Citation](#citation)
+- [Acknowledgments](#-acknowledgments)
+
+---
+
 ## 💫 Meet **LingBot-VA**!  We've built an AR diffusion framework for simultaneous world modeling and action! 🤖✨
 
 **LingBot-VA** has focused on:
@@ -27,6 +51,8 @@ https://github.com/user-attachments/assets/cec7b7a6-953b-4fa4-8f1a-47efc1fce547
 - **Long-Horizon Performance and Generalization**: High improvements in sample efficiency, long-horizon success rates, and generalization to novel scenes.
 
 # 🚀 News
+- **[2026-04-24]** Weights for post-train on **LIBERO-LONG** released! (**IMPORTANT**: Ensure that `va_libero_cfg.action_snr_shift`, `va_libero_cfg.used_action_channel_ids` and `va_libero_cfg.norm_stat` in [`wan_va/configs/va_libero_cfg.py`](wan_va/configs/va_libero_cfg.py) are synchronized with the latest version of the repository.)
+- **[2026-04-08]** Post-training and inference code for the **LIBERO** dataset is now available!
 - **[2026-02-17]** Post-training code and dataset released! Support fine-tuning LingBot-VA on custom robotic manipulation datasets.
 - **[2026-01-29]** Weights and code for shared backbone released! Please stay tuned for our separated version!
 
@@ -44,12 +70,14 @@ https://github.com/user-attachments/assets/cec7b7a6-953b-4fa4-8f1a-47efc1fce547
 | :--- | :--- | :--- | :--- |
 | lingbot-va-base &nbsp; | [🤗 robbyant/lingbot-va-base &nbsp;](https://huggingface.co/robbyant/lingbot-va-base) | [🤖 Robbyant/lingbot-va-base &nbsp;](https://modelscope.cn/models/Robbyant/lingbot-va-base)  | LingBot-VA w/ shared backbone|
 | lingbot-va-posttrain-robotwin &nbsp; | [🤗 robbyant/lingbot-va-posttrain-robotwin &nbsp;](https://huggingface.co/robbyant/lingbot-va-posttrain-robotwin) | [🤖 Robbyant/lingbot-va-posttrain-robotwin &nbsp;](https://modelscope.cn/models/Robbyant/lingbot-va-posttrain-robotwin)  | LingBot-VA-Posttrain-Robotwin w/ shared backbone|
+| lingbot-va-posttrain-libero-long &nbsp; | [🤗 robbyant/lingbot-va-posttrain-libero-long &nbsp;](https://huggingface.co/robbyant/lingbot-va-posttrain-libero-long) | [🤖 Robbyant/lingbot-va-posttrain-libero-long &nbsp;](https://modelscope.cn/models/Robbyant/lingbot-va-posttrain-libero-long)  | LingBot-VA-Posttrain-LIBERO-LONG w/ shared backbone|
 
 - **Post-Training Dataset**
 
-| Dataset Name | Repository | Description |
-| :--- | :--- | :--- |
-| robotwin-clean-and-aug-lerobot &nbsp; | [🤗 robbyant/robotwin-clean-and-aug-lerobot](https://huggingface.co/datasets/robbyant/robotwin-clean-and-aug-lerobot) | Cleaned & augmented RoboTwin dataset in LeRobot format for post-training |
+| Dataset Name | Huggingface Repository | ModelScope Repository | Description |
+| :--- | :--- | :--- | :--- |
+| robotwin-clean-and-aug-lerobot &nbsp; | [🤗 robbyant/robotwin-clean-and-aug-lerobot](https://huggingface.co/datasets/robbyant/robotwin-clean-and-aug-lerobot) | [🤖 Robbyant/robotwin-clean-and-aug-lerobot](https://modelscope.cn/datasets/Robbyant/robotwin-clean-and-aug-lerobot) | Cleaned & augmented RoboTwin dataset in LeRobot format for post-training |
+| libero-long-lerobot &nbsp; | [🤗 robbyant/libero-long-lerobot](https://huggingface.co/datasets/robbyant/libero-long-lerobot) | [🤖 Robbyant/libero-long-lerobot](https://modelscope.cn/datasets/Robbyant/libero-long-lerobot) | LIBERO-Long dataset in LeRobot format for post-training |
 ---
 
 # 🛠️ Quick Start
@@ -101,58 +129,58 @@ You can follow the official instructions from the original RoboTwin-2.0 reposito
 
 In summary:
 
-1. 
-```bash
-sudo apt install libvulkan1 mesa-vulkan-drivers vulkan-tools
-```
+1. Install Vulkan dependencies:
+   ```bash
+   sudo apt install libvulkan1 mesa-vulkan-drivers vulkan-tools
+   ```
 
-2. 
-```bash
-git clone https://github.com/RoboTwin-Platform/RoboTwin.git && cd RoboTwin && git checkout 2eeec322
-```
+2. Clone the RoboTwin repository:
+   ```bash
+   git clone https://github.com/RoboTwin-Platform/RoboTwin.git && cd RoboTwin && git checkout 2eeec322
+   ```
 
-3. modify script/requirements.txt 
-```bash
-transforms3d==0.4.2
-sapien==3.0.0b1
-scipy==1.10.1
-mplib==0.2.1
-gymnasium==0.29.1
-trimesh==4.4.3
-open3d==0.18.0
-imageio==2.34.2
-pydantic
-zarr
-openai
-huggingface_hub==0.36.2
-h5py
-# For Description Generation
-azure==4.0.0
-azure-ai-inference
-pyglet<2
-wandb
-moviepy
-imageio
-termcolor
-av
-matplotlib
-ffmpeg
-```
+3. Modify `script/requirements.txt` with the following content:
+   ```txt
+   transforms3d==0.4.2
+   sapien==3.0.0b1
+   scipy==1.10.1
+   mplib==0.2.1
+   gymnasium==0.29.1
+   trimesh==4.4.3
+   open3d==0.18.0
+   imageio==2.34.2
+   pydantic
+   zarr
+   openai
+   huggingface_hub==0.36.2
+   h5py
+   # For Description Generation
+   azure==4.0.0
+   azure-ai-inference
+   pyglet<2
+   wandb
+   moviepy
+   imageio
+   termcolor
+   av
+   matplotlib
+   ffmpeg
+   ```
 
-4. modify line 8 of script/_install.sh:
-```bash
-pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" --no-build-isolation
-```
+4. Modify line 8 of `script/_install.sh`:
+   ```bash
+   pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable" --no-build-isolation
+   ```
 
-5. run:
-```bash
-bash script/_install.sh
-```
+5. Install dependencies:
+   ```bash
+   bash script/_install.sh
+   ```
 
-6. run:
-```bash
-bash script/_download_assets.sh
-```
+6. Download assets:
+   ```bash
+   bash script/_download_assets.sh
+   ```
 
  **Deploying the Inference Server**
 ```bash
@@ -180,6 +208,19 @@ Related experiments results will be save in `/path/to/your/RoboTwin/${save_root}
 It is important to note that the inference server and client must be deployed on the same machine. For launching multi-GPU client, we padded the original 50 tasks to 56 via duplication and partitioned them into 7 groups to align with the 8-GPU configuration of our inference node. You can specify the `task_group_id` (0-6) to select a particular group for inference. For detailed grouping configurations, please refer to `evaluation/robotwin/launch_client_multigpus.sh`.
 
 > **GPU Memory Requirements**: Approximately **24GB VRAM** for single-GPU RoboTwin evaluation with offload mode enabled (VAE and text_encoder offloaded to CPU).
+
+
+### Evaluation on LIBERO
+Follow the official instructions to install LIBERO, then launch the server and client:
+
+
+```bash
+# server
+bash evaluation/libero/launch_server.sh
+
+# client
+bash evaluation/libero/launch_client.sh
+```
 
 ### Run Image to Video-Action Generation
 
@@ -326,7 +367,11 @@ The latent file naming convention `episode_{index}_{start_frame}_{end_frame}.pth
 ### Training
 
 ```bash
-NGPU=8 bash script/run_va_posttrain.sh
+# RoboTwin
+NGPU=8 CONFIG_NAME='robotwin_train' bash script/run_va_posttrain.sh
+
+# LIBERO
+NGPU=8 CONFIG_NAME='libero_train' bash script/run_va_posttrain.sh
 ```
 
 For better training performance, use a larger global batch size (e.g., 32, 64). If you have limited GPU resources, you can increase `gradient_accumulation_steps` to achieve a larger effective batch size.
