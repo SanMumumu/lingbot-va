@@ -1,12 +1,15 @@
 # Copyright 2024-2025 The Robbyant Team Authors. All rights reserved.
 import argparse
+import json
 import os
+import re
 import sys
 import time
 from functools import partial
 from PIL import Image
 from diffusers.video_processor import VideoProcessor
 from diffusers.utils import export_to_video
+import imageio.v2 as imageio
 
 import numpy as np
 import torch
@@ -93,6 +96,7 @@ class VA_Server:
                                             )
 
         self.env_type = job_config.env_type
+        self.is_robomme = "robomme" in str(getattr(job_config, "__name__", "")).lower()
         self.streaming_vae_half = None
         if self.env_type == 'robotwin_tshape':
             vae_half = load_vae(
@@ -102,6 +106,88 @@ class VA_Server:
                 torch_device='cpu' if self.enable_offload else self.device,
             )
             self.streaming_vae_half = WanVAEStreamingWrapper(vae_half)
+        self.video_processor = VideoProcessor(vae_scale_factor=1)
+
+    @staticmethod
+    def _safe_path_part(value):
+        value = str(value or "").strip().lower()
+        value = re.sub(r"[^a-z0-9]+", "_", value).strip("_")
+        return value or "default"
+
+    def _infer_robomme_task_slug(self, task_name, prompt):
+        if task_name:
+            return self._safe_path_part(task_name)
+
+        prompt_l = str(prompt or "").lower()
+        if (
+            "pick up the blue cube" in prompt_l
+            and "place it on the target" in prompt_l
+        ):
+            return "pickxtimes"
+        return self._safe_path_part(prompt_l[:80] if prompt_l else "default")
+
+    def _should_save_visualization(self, obs):
+        return obs.get(
+            'save_visualization',
+            getattr(self.job_config, 'save_visualization', False),
+        )
+
+    @staticmethod
+    def _to_uint8_image(value):
+        if torch.is_tensor(value):
+            value = value.detach().cpu().numpy()
+        arr = np.asarray(value)
+        if arr.ndim == 4 and arr.shape[0] == 1:
+            arr = arr[0]
+        if arr.ndim == 3 and arr.shape[0] in (1, 3) and arr.shape[-1] not in (1, 3):
+            arr = np.transpose(arr, (1, 2, 0))
+        if arr.dtype != np.uint8:
+            if arr.size and arr.max() <= 1.0 + 1e-3:
+                arr = arr * 255.0
+            arr = arr.clip(0, 255).astype(np.uint8)
+        if arr.ndim == 2:
+            arr = np.repeat(arr[:, :, None], 3, axis=2)
+        return np.ascontiguousarray(arr[:, :, :3])
+
+    def _append_visualization_obs(self, obs_value):
+        if not hasattr(self, 'visualization_obs_frames'):
+            self.visualization_obs_frames = []
+        frames = obs_value if isinstance(obs_value, list) else [obs_value]
+        for frame in frames:
+            if not isinstance(frame, dict):
+                continue
+            if not all(k in frame for k in self.job_config.obs_cam_keys):
+                continue
+            self.visualization_obs_frames.append({
+                k: self._to_uint8_image(frame[k])
+                for k in self.job_config.obs_cam_keys
+            })
+
+    def _export_observation_video(self, fps=10):
+        frames = getattr(self, 'visualization_obs_frames', [])
+        if not frames:
+            return None
+        output_path = os.path.join(self.exp_save_root, 'observations.mp4')
+        first = frames[0][self.job_config.obs_cam_keys[0]]
+        target_h, target_w = first.shape[:2]
+        composed_frames = []
+        for frame in frames:
+            row = []
+            for key in self.job_config.obs_cam_keys:
+                img = frame[key]
+                if img.shape[:2] != (target_h, target_w):
+                    img = np.asarray(
+                        Image.fromarray(img).resize((target_w, target_h), Image.BILINEAR)
+                    )
+                row.append(img)
+            composed_frames.append(np.hstack(row).astype(np.uint8))
+        try:
+            imageio.mimsave(output_path, composed_frames, fps=fps)
+            logger.info(f"Saved observation video to {output_path}")
+            return output_path
+        except Exception as exc:
+            logger.warning(f"Failed to save observation video: {exc}")
+            return None
 
     def _get_t5_prompt_embeds(
         self,
@@ -374,12 +460,13 @@ class VA_Server:
         video_latent = torch.cat(mu_norm.split(1, dim=0), dim=-1)
         return video_latent.to(self.device)
 
-    def _reset(self, prompt=None):
+    def _reset(self, prompt=None, task_name=None):
         logger.info('Reset.')
         self.use_cfg = (self.job_config.guidance_scale > 1) or (self.job_config.action_guidance_scale > 1)
         #### Reset all parameters
         self.frame_st_id = 0
         self.init_latent = None
+        self.visualization_obs_frames = []
         #### clean vae and transformer cache
         self.transformer.clear_cache(self.cache_name)
         self.streaming_vae.clear_cache()
@@ -436,9 +523,24 @@ class VA_Server:
             )
 
         self.exp_name = f"{prompt}_{time.strftime('%Y%m%d_%H%M%S')}" if prompt else "default"
-        self.exp_save_root = os.path.join(self.save_root, 'real', self.exp_name)
+        if self.is_robomme:
+            task_slug = self._infer_robomme_task_slug(task_name, prompt)
+            self.exp_task_slug = task_slug
+            self.exp_save_root = os.path.join(self.save_root, task_slug, self.exp_name)
+        else:
+            self.exp_task_slug = 'real'
+            self.exp_save_root = os.path.join(self.save_root, 'real', self.exp_name)
         os.makedirs(self.exp_save_root, exist_ok=True)
         torch.cuda.empty_cache()
+        metadata = {
+            'task_slug': self.exp_task_slug,
+            'run_name': self.exp_name,
+            'visualization_dir': self.exp_save_root,
+            'prompt': prompt,
+        }
+        with open(os.path.join(self.exp_save_root, 'metadata.json'), 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, ensure_ascii=False, indent=2)
+        return metadata
 
     def _infer(self, obs, frame_st_id=0):
         frame_chunk_size = self.job_config.frame_chunk_size
@@ -569,6 +671,27 @@ class VA_Server:
         torch.cuda.empty_cache()
         return actions, latents
 
+    def _export_pred_video(self, latents, frame_st_id, fps=10):
+        output_path = os.path.join(self.exp_save_root, f'pred_video_{frame_st_id}.mp4')
+        try:
+            original_vae_device = next(self.vae.parameters()).device
+            decode_device = self.device if self.enable_offload else original_vae_device
+            if original_vae_device != decode_device:
+                self.vae = self.vae.to(decode_device).to(self.dtype)
+
+            latents = latents.detach().to(decode_device)
+            decoded_video = self.decode_one_video(latents, 'np')[0]
+            export_to_video(decoded_video, output_path, fps=fps)
+            logger.info(f"Saved predicted video to {output_path}")
+        except Exception as exc:
+            logger.warning(f"Failed to save predicted video for frame {frame_st_id}: {exc}")
+            output_path = None
+        finally:
+            if self.enable_offload:
+                self.vae = self.vae.to('cpu')
+            torch.cuda.empty_cache()
+        return output_path
+
     def _compute_kv_cache(self, obs):
         ### optional async save obs for debug
         self.transformer.clear_pred_cache(self.cache_name)
@@ -607,21 +730,52 @@ class VA_Server:
     def infer(self, obs):
         reset = obs.get('reset', False)
         prompt = obs.get('prompt', None)
+        task_name = obs.get('task_name', obs.get('env_id', None))
         compute_kv_cache = obs.get('compute_kv_cache', False)
 
         if reset:
             logger.info(f"******************* Reset server ******************")
-            self._reset(prompt=prompt)
-            return dict()
+            return self._reset(prompt=prompt, task_name=task_name)
         elif compute_kv_cache:
             logger.info(
                 f"################# Compute KV Cache #################")
             self._compute_kv_cache(obs)
+            if self._should_save_visualization(obs):
+                self._append_visualization_obs(obs.get('obs', []))
+                self._export_observation_video(
+                    fps=obs.get(
+                        'visualization_fps',
+                        getattr(self.job_config, 'visualization_fps', 10),
+                    ),
+                )
             return dict()
         else:
             logger.info(f"################# Infer One Chunk #################")
-            action, _ = self._infer(obs, frame_st_id=self.frame_st_id)
-            return dict(action=action)
+            frame_st_id = self.frame_st_id
+            action, latents = self._infer(obs, frame_st_id=frame_st_id)
+            result = dict(action=action)
+            save_visualization = self._should_save_visualization(obs)
+            if save_visualization:
+                self._append_visualization_obs(obs.get('obs', []))
+                obs_video_path = self._export_observation_video(
+                    fps=obs.get(
+                        'visualization_fps',
+                        getattr(self.job_config, 'visualization_fps', 10),
+                    ),
+                )
+                if obs_video_path is not None:
+                    result['observation_video_path'] = obs_video_path
+                video_path = self._export_pred_video(
+                    latents,
+                    frame_st_id=frame_st_id,
+                    fps=obs.get(
+                        'visualization_fps',
+                        getattr(self.job_config, 'visualization_fps', 10),
+                    ),
+                )
+                if video_path is not None:
+                    result['video_path'] = video_path
+            return result
     
     def decode_one_video(self, latents, output_type):
         latents = latents.to(self.vae.dtype)
