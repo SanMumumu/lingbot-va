@@ -90,11 +90,63 @@ def split_segment(
     return parts
 
 
+def collapse_to_single_segment(episode: dict[str, Any]) -> dict[str, Any]:
+    """Rewrite the episode's action_config so it's one segment covering [0, length).
+
+    Mirrors libero/robotwin where each episode is one training sample. Reuses
+    the first segment's action_text (the natural-language goal); falls back to
+    the episode's `tasks[0]` if no action_text is present.
+    """
+    action_config = episode.get("action_config", [])
+    length = int(episode["length"])
+    if action_config:
+        action_text = str(action_config[0].get("action_text") or "")
+    else:
+        action_text = ""
+    if not action_text:
+        tasks = episode.get("tasks") or [""]
+        action_text = str(tasks[0])
+    episode["action_config"] = [
+        {
+            "start_frame": 0,
+            "end_frame": length,
+            "action_text": action_text,
+            "source_start_frame": 0,
+            "source_end_frame": length,
+            "segment_part": 0,
+            "segment_parts_total": 1,
+        }
+    ]
+    return episode
+
+
 def split_dataset(args: argparse.Namespace) -> None:
     dataset_dir = Path(args.dataset_dir)
     info = load_json(dataset_dir / "meta" / "info.json")
     episodes_path = dataset_dir / "meta" / "episodes.jsonl"
     episodes = load_jsonl(episodes_path)
+
+    if args.unsplit:
+        old_segments = sum(len(ep.get("action_config", [])) for ep in episodes)
+        for episode in tqdm(episodes, desc="unsplit action_config"):
+            collapse_to_single_segment(episode)
+        new_segments = len(episodes)
+        if old_segments == new_segments:
+            print(
+                f"No action_config unsplit needed: {old_segments} segment(s) "
+                f"already match 1-per-episode."
+            )
+            return
+        if args.backup:
+            backup_path = episodes_path.with_suffix(".jsonl.bak")
+            if not backup_path.exists():
+                shutil.copy2(episodes_path, backup_path)
+        write_jsonl(episodes_path, episodes)
+        print(
+            f"Rewrote {episodes_path}: {old_segments} -> {new_segments} "
+            f"action_config segment(s) (libero-style; one per episode)."
+        )
+        return
 
     ori_fps = int(info["fps"])
     stride = max(1, int(round(float(ori_fps) / float(args.target_fps))))
@@ -143,6 +195,13 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=81,
         help="Maximum sampled RGB frames per latent file; rounded down to 4n+1.",
+    )
+    parser.add_argument(
+        "--unsplit",
+        action="store_true",
+        help="Reverse a previous split: collapse each episode's action_config back to "
+             "one segment covering [0, length). Matches the libero/robotwin convention "
+             "of one segment per episode. Ignores --max-sampled-frames / --target-fps.",
     )
     parser.add_argument("--backup", action="store_true")
     return parser.parse_args()

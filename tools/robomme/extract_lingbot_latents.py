@@ -397,8 +397,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-sampled-frames",
         type=int,
-        default=81,
-        help="Maximum sampled RGB frames per VAE encode. Set 0 to disable the guard.",
+        default=0,
+        help="Maximum sampled RGB frames per VAE encode (0 = no guard, default). "
+             "Set to a positive 4n+1 value if you ran "
+             "tools/robomme/split_robomme_action_config.py with the same value.",
     )
     parser.add_argument("--max-sequence-length", type=int, default=512)
     parser.add_argument("--device", default="cuda:0")

@@ -1,6 +1,6 @@
 # Copyright 2024-2025 The Robbyant Team Authors. All rights reserved.
 from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
-from lerobot.datasets.utils import get_episode_data_index
+from lerobot.datasets.utils import get_episode_data_index, hf_transform_to_torch
 from lerobot.datasets.compute_stats import aggregate_stats, compute_episode_stats
 import numpy as np
 from pathlib import Path
@@ -37,20 +37,26 @@ def construct_lerobot(
         config=config,
     )
 
-def construct_lerobot_multi_processor(config, 
+def construct_lerobot_multi_processor(config,
                                       num_init_worker=8,
                                       ):
-    datasets_out_lst = []
     construct_func = partial(
         construct_lerobot,
         config=config,
     )
     repo_list = recursive_find_file(config.dataset_path, 'info.json')
     repo_list = [v.split('/meta/info.json')[0] for v in repo_list]
-    with Pool(num_init_worker) as pool:
-        datasets_out_lst = pool.map(construct_func, repo_list)
-                
-    return datasets_out_lst
+    if not repo_list:
+        raise FileNotFoundError(
+            f"No meta/info.json under {config.dataset_path}"
+        )
+    # Forking 128 workers after CUDA/FSDP init can take minutes or deadlock.
+    # Build sequentially when there is a single sub-dataset (the common case).
+    if len(repo_list) == 1:
+        return [construct_func(repo_list[0])]
+    pool_size = max(1, min(num_init_worker, len(repo_list)))
+    with Pool(pool_size) as pool:
+        return pool.map(construct_func, repo_list)
 
 def get_relative_pose(pose):
     if torch.is_tensor(pose):
@@ -132,13 +138,7 @@ class LatentLeRobotDataset(LeRobotDataset):
             episodes_stats = [self.meta.episodes_stats[ep_idx] for ep_idx in self.episodes]
             self.stats = aggregate_stats(episodes_stats)
         
-        try:
-            assert all((self.root / fpath).is_file() for fpath in self.get_episodes_file_paths())
-            self.hf_dataset = self.load_hf_dataset()
-        except (AssertionError, FileNotFoundError, NotADirectoryError):
-            self.revision = get_safe_version(self.repo_id, self.revision)
-            self.download_episodes(download_videos)
-            self.hf_dataset = self.load_hf_dataset()
+        self.hf_dataset = self._load_action_only_hf_dataset()
         self.episode_data_index = get_episode_data_index(self.meta.episodes, self.episodes)
         
         self.latent_path = Path(repo_id) / 'latents'
@@ -155,9 +155,60 @@ class LatentLeRobotDataset(LeRobotDataset):
             )
         self.parse_meta()
 
+    def _load_action_only_hf_dataset(self):
+        """Bypass lerobot's load_dataset which ingests inline image bytes from parquet.
+
+        LingBot only reads the `action` column at training time, so we read just
+        that column directly via pyarrow. This avoids the multi-GB Arrow scan
+        that would otherwise hang setup on datasets like CALVIN where parquets
+        store image bytes inline.
+        """
+        import datasets
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        files = [str(self.root / self.meta.get_data_file_path(ep_idx))
+                 for ep_idx in self.meta.episodes]
+        tables = [pq.read_table(f, columns=["action"]) for f in files]
+        table = pa.concat_tables(tables) if len(tables) > 1 else tables[0]
+        hf_dataset = datasets.Dataset(table, split="train")
+        hf_dataset.set_transform(hf_transform_to_torch)
+        return hf_dataset
+
+    def _build_latent_index(self):
+        """One scandir per (chunk, camera) instead of one stat per segment.
+
+        On NFS / Lustre, 48 k stat()s during parse_meta can stall startup for
+        many minutes; one listdir per chunk reduces that to a few hundred.
+        """
+        index = {}
+        latent_root = Path(self.latent_path)
+        if not latent_root.exists():
+            return index
+        for chunk_dir in sorted(latent_root.iterdir()):
+            if not chunk_dir.is_dir():
+                continue
+            for cam_key in self.used_video_keys:
+                cam_dir = chunk_dir / cam_key
+                if not cam_dir.is_dir():
+                    continue
+                try:
+                    files = os.listdir(cam_dir)
+                except OSError:
+                    continue
+                index[(chunk_dir.name, cam_key)] = set(files)
+        return index
+
     def parse_meta(self):
+        latent_index = self._build_latent_index()
         out = []
-        for key, value in self.meta.episodes.items():
+        episodes_iter = tqdm(
+            self.meta.episodes.items(),
+            total=len(self.meta.episodes),
+            desc=f"parse_meta {Path(self.repo_id).name}",
+            disable=os.environ.get("LINGBOT_QUIET_DATASET", "0") == "1",
+        )
+        for key, value in episodes_iter:
             episode_index = value["episode_index"]
             tasks = value["tasks"]
             action_config = value["action_config"]
@@ -168,15 +219,24 @@ class LatentLeRobotDataset(LeRobotDataset):
                 }
                 cur_meta.update(acfg)
 
-                check_statu = self._check_meta(
+                if self._check_meta_indexed(
                     cur_meta["start_frame"],
                     cur_meta["end_frame"],
                     cur_meta["episode_index"],
-                )
-
-                if check_statu:
+                    latent_index,
+                ):
                     out.append(cur_meta)
         self.new_metas = out
+
+    def _check_meta_indexed(self, start_frame, end_frame, episode_index, index):
+        episode_chunk = self.meta.get_episode_chunk(episode_index)
+        chunk_name = f"chunk-{episode_chunk:03d}"
+        fname = f"episode_{episode_index:06d}_{start_frame}_{end_frame}.pth"
+        for cam_key in self.used_video_keys:
+            files = index.get((chunk_name, cam_key))
+            if files is None or fname not in files:
+                return False
+        return True
 
     def _check_meta(self, start_frame, end_frame, episode_index):
         episode_chunk = self.meta.get_episode_chunk(episode_index)

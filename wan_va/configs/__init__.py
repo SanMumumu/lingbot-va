@@ -10,8 +10,11 @@ from .va_demo_i2va import va_demo_i2va_cfg
 from .va_libero_cfg import va_libero_cfg
 from .va_libero_train_cfg import va_libero_train_cfg
 from .va_libero_i2va import va_libero_i2va_cfg
+from .va_calvin_cfg import va_calvin_cfg
+from .va_calvin_train_cfg import va_calvin_train_cfg
 from .va_robomme_cfg import va_robomme_cfg
 from .va_robomme_train_cfg import va_robomme_train_cfg
+from .va_robomme_i2va import va_robomme_i2va_cfg
 
 VA_CONFIGS = {
     'robotwin': va_robotwin_cfg,
@@ -25,6 +28,9 @@ VA_CONFIGS = {
     'libero': va_libero_cfg,
     'libero_train': va_libero_train_cfg,
     'libero_i2av': va_libero_i2va_cfg,
+    'calvin': va_calvin_cfg,
+    'calvin_train': va_calvin_train_cfg,
     'robomme': va_robomme_cfg,
     'robomme_train': va_robomme_train_cfg,
+    'robomme_i2av': va_robomme_i2va_cfg,
 }

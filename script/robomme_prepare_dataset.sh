@@ -21,7 +21,10 @@ CHUNKS_SIZE="${CHUNKS_SIZE:-100}"
 VERIFY_DEEP_LIMIT="${VERIFY_DEEP_LIMIT:-32}"
 LOG_DIR="${LOG_DIR:-${OUT_DIR}/logs}"
 SKIP_CONVERT="${SKIP_CONVERT:-0}"
-MAX_SAMPLED_FRAMES_PER_LATENT="${MAX_SAMPLED_FRAMES_PER_LATENT:-81}"
+# Default: 0 = do NOT split episodes (one action_config segment per episode,
+# matching the libero/robotwin convention). Set to a positive 4n+1 value
+# (e.g. 81) to fall back to the older split-by-VAE-window behavior.
+MAX_SAMPLED_FRAMES_PER_LATENT="${MAX_SAMPLED_FRAMES_PER_LATENT:-0}"
 
 export PYTORCH_ALLOC_CONF="${PYTORCH_ALLOC_CONF:-expandable_segments:True}"
 
@@ -47,11 +50,21 @@ else
     "${CONVERT_EXTRA_ARGS[@]}"
 fi
 
-python tools/robomme/split_robomme_action_config.py \
-  --dataset-dir "${OUT_DIR}" \
-  --target-fps "${TARGET_FPS}" \
-  --max-sampled-frames "${MAX_SAMPLED_FRAMES_PER_LATENT}" \
-  --backup
+if [[ "${MAX_SAMPLED_FRAMES_PER_LATENT}" -gt 0 ]]; then
+  echo "Splitting action_config into <=${MAX_SAMPLED_FRAMES_PER_LATENT}-frame chunks (legacy mode)."
+  python tools/robomme/split_robomme_action_config.py \
+    --dataset-dir "${OUT_DIR}" \
+    --target-fps "${TARGET_FPS}" \
+    --max-sampled-frames "${MAX_SAMPLED_FRAMES_PER_LATENT}" \
+    --backup
+else
+  echo "Keeping one action_config segment per episode (libero-style). "
+  echo "Re-collapsing any prior split via tools/robomme/split_robomme_action_config.py --unsplit."
+  python tools/robomme/split_robomme_action_config.py \
+    --dataset-dir "${OUT_DIR}" \
+    --unsplit \
+    --backup
+fi
 
 mkdir -p "${LOG_DIR}"
 
@@ -88,7 +101,7 @@ for ((shard=0; shard<NUM_LATENT_SHARDS; shard++)); do
     --height "${IMAGE_SIZE}" \
     --width "${IMAGE_SIZE}" \
     --target-fps "${TARGET_FPS}" \
-    --max-sampled-frames "${MAX_SAMPLED_FRAMES_PER_LATENT}" \
+    --max-sampled-frames "${MAX_SAMPLED_FRAMES_PER_LATENT:-0}" \
     --device cuda:0 \
     --num-shards "${NUM_LATENT_SHARDS}" \
     --shard-index "${shard}" \
