@@ -5,8 +5,11 @@ set -euo pipefail
 
 export LINGBOT_ROBOMME_DATASET="${LINGBOT_ROBOMME_DATASET:-/mnt/hwdata/wangsen/WAM/lingbot-va/DATA/robomme_lingbot}"
 export LINGBOT_BASE_CKPT="${LINGBOT_BASE_CKPT:-/mnt/hwdata/wangsen/WAM/lingbot-va/CKPTS/lingbot-va-base}"
-export LINGBOT_ENABLE_WANDB="${LINGBOT_ENABLE_WANDB:-0}"
 export TOKENIZERS_PARALLELISM=false
+
+# va_robomme_train_cfg.enable_wandb is True by default (matching libero / robotwin).
+# Provide real WANDB_* env vars (API_KEY, BASE_URL, TEAM_NAME, PROJECT), or edit
+# wan_va/configs/va_robomme_train_cfg.py to set enable_wandb = False.
 
 NGPU="${NGPU:-8}"
 MASTER_PORT="${MASTER_PORT:-29501}"

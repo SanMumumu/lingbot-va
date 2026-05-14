@@ -177,27 +177,47 @@ cd /app/lingbot_client
 GPUS=0,1,2,3 \
 HOST=172.17.0.1 \
 BASE_PORT=29056 \
+SHARD_MODE=balanced \
 NUM_EPISODES=50 \
 MAX_STEPS=1300 \
 OUT_DIR=/app/runs/lingbot_eval \
 bash launch_clients_multi.sh
 ```
 
-The task split is deterministic:
+The default `SHARD_MODE=balanced` uses measured task runtimes from a previous 50-episode run, so slow tasks are spread across cards. For the current 4-card run:
 
 ```text
-card slot 0 -> task_list[0::N]
-card slot 1 -> task_list[1::N]
-...
-card slot N-1 -> task_list[N-1::N]
+slot 0 -> InsertPeg, VideoPlaceOrder, RouteStick, VideoUnmaskSwap      ~8.92 h
+slot 1 -> BinFill, PickXtimes, VideoPlaceButton, PatternLock           ~8.43 h
+slot 2 -> ButtonUnmaskSwap, MoveCube, StopCube, VideoRepick            ~8.61 h
+slot 3 -> PickHighlight, SwingXtimes, ButtonUnmask, VideoUnmask        ~8.49 h
 ```
 
-Change `GPUS` to control the shard count:
+For 8 cards:
+
+```text
+slot 0 -> InsertPeg                                      ~4.42 h
+slot 1 -> BinFill, PatternLock                           ~4.59 h
+slot 2 -> ButtonUnmaskSwap, VideoUnmask                  ~4.74 h
+slot 3 -> PickHighlight, VideoRepick                     ~4.55 h
+slot 4 -> SwingXtimes, RouteStick                        ~3.79 h
+slot 5 -> MoveCube, StopCube, VideoUnmaskSwap            ~4.72 h
+slot 6 -> PickXtimes, VideoPlaceButton                   ~3.84 h
+slot 7 -> VideoPlaceOrder, ButtonUnmask                  ~3.81 h
+```
+
+Change `GPUS` to control shard count:
 
 ```bash
-GPUS=0,1       # 2 shards, 8 tasks per shard
-GPUS=0,1,2,3   # 4 shards, 4 tasks per shard
-GPUS=0,1,2,3,4,5,6,7   # 8 shards, 2 tasks per shard
+GPUS=0,1       # 2 shards
+GPUS=0,1,2,3   # 4 shards
+GPUS=0,1,2,3,4,5,6,7   # 8 shards
+```
+
+To reproduce the older index-based split, use:
+
+```bash
+SHARD_MODE=round_robin bash launch_clients_multi.sh
 ```
 
 All shard summaries are merged into:
@@ -214,11 +234,19 @@ Client rollout videos:
 $OUT_DIR/pickxtimes/
   pick up the blue cube and place it on the target, repeating this action five times, then press the button to stop_20260506_154933/
     ep0000_False.mp4
+    pred_video_0.mp4
+    pred_video_4.mp4
+    pred_video_all.mp4
     instruction.txt
     metadata.json
 ```
 
-Server visualizations for the same run:
+The same directory is the primary place to inspect one episode: `ep*.mp4`
+is the executed rollout, and `pred_video_*.mp4` are the server-side predicted
+future videos copied from the matching visualization run. `pred_video_all.mp4`
+is the same prediction sequence concatenated in numeric order for easier review.
+
+Server debug artifacts for the same run remain under `visualization/`:
 
 ```text
 $OUT_DIR/visualization/pickxtimes/
@@ -250,6 +278,7 @@ $OUT_DIR/summary_all.json
 ## Common Issues
 
 - `ModuleNotFoundError: wan_va`: start Docker with `docker_run.sh`; it mounts the lightweight websocket helper under `/app/lingbot_client/wan_va/...`.
+- `Warning: link 'camera_link' material 'aluminum' undefined`: harmless URDF visual-material warning. It means a link references a material name that was not defined; it does not change collision geometry, joint state, action execution, or success calculation. Treat explicit `episode ... crashed` lines as real failures to inspect.
 - No files under `$OUT_DIR/visualization`: restart `launch_server.sh`; old server processes do not load code changes.
 - Docker cannot reach server: use `--host 172.17.0.1` for bridge networking, or `--host host.docker.internal` where supported.
 - To disable server-side predicted videos, start the server with `LINGBOT_ROBOMME_SAVE_PRED_VIDEO=0`.

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Register the RoboMME config name in wan_va/configs/__init__.py.
+"""Register the RoboMME config names in wan_va/configs/__init__.py.
 
 Run once from the lingbot-va repository root after copying
-va_robomme_cfg.py and va_robomme_train_cfg.py into wan_va/configs/.
+va_robomme_cfg.py, va_robomme_train_cfg.py, and va_robomme_i2va.py
+into wan_va/configs/.
 """
 
 from __future__ import annotations
@@ -14,10 +15,12 @@ INIT_PATH = Path("wan_va/configs/__init__.py")
 IMPORT_LINES = [
     "from .va_robomme_cfg import va_robomme_cfg",
     "from .va_robomme_train_cfg import va_robomme_train_cfg",
+    "from .va_robomme_i2va import va_robomme_i2va_cfg",
 ]
 DICT_LINES = [
     "    'robomme': va_robomme_cfg,",
     "    'robomme_train': va_robomme_train_cfg,",
+    "    'robomme_i2av': va_robomme_i2va_cfg,",
 ]
 
 

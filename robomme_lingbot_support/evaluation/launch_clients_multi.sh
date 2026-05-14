@@ -12,6 +12,7 @@ OUT_DIR="${OUT_DIR:-/app/runs/lingbot_eval}"
 LOG_DIR="${LOG_DIR:-${OUT_DIR}/logs}"
 SAVE_VIDEO="${SAVE_VIDEO:-1}"
 FIRST_FRAME_CONDITIONING="${FIRST_FRAME_CONDITIONING:-0}"
+SHARD_MODE="${SHARD_MODE:-balanced}"
 
 mkdir -p "${OUT_DIR}" "${LOG_DIR}"
 
@@ -19,7 +20,7 @@ IFS=',' read -r -a GPU_ARR <<< "${GPUS}"
 NUM_SHARDS="${#GPU_ARR[@]}"
 
 echo "Launching ${NUM_SHARDS} RoboMME client shard(s) on GPUs: ${GPUS}"
-echo "Tasks are split as BenchmarkEnvBuilder.get_task_list()[shard_index::${NUM_SHARDS}]."
+echo "Task split mode: ${SHARD_MODE}"
 
 pids=()
 for slot in "${!GPU_ARR[@]}"; do
@@ -36,7 +37,8 @@ for slot in "${!GPU_ARR[@]}"; do
        --num-episodes "${NUM_EPISODES}"
        --action-space "${ACTION_SPACE}"
        --max-steps "${MAX_STEPS}"
-       --out-dir "${OUT_DIR}")
+       --out-dir "${OUT_DIR}"
+       --shard-mode "${SHARD_MODE}")
 
   if [[ "${SAVE_VIDEO}" == "1" ]]; then
     cmd+=(--save-video)

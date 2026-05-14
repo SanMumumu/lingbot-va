@@ -11,6 +11,7 @@ cp "${BUNDLE_ROOT}/tools/robomme/"*.py "${REPO_ROOT}/tools/robomme/"
 cp "${BUNDLE_ROOT}/script/robomme_"*.sh "${REPO_ROOT}/script/"
 cp "${BUNDLE_ROOT}/wan_va/configs/va_robomme_cfg.py" "${REPO_ROOT}/wan_va/configs/"
 cp "${BUNDLE_ROOT}/wan_va/configs/va_robomme_train_cfg.py" "${REPO_ROOT}/wan_va/configs/"
+cp "${BUNDLE_ROOT}/wan_va/configs/va_robomme_i2va.py" "${REPO_ROOT}/wan_va/configs/"
 
 cd "${REPO_ROOT}"
 python tools/robomme/register_robomme_config.py

@@ -6,7 +6,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import cv2
 from pathlib import Path
 
-robowin_root = Path("/path/to/your/robowin")
+robowin_root = Path(os.environ.get("ROBOTWIN_ROOT", "/mnt/hwdata/wangsen/WAM/lingbot-va/third_party/RoboTwin"))
 if str(robowin_root) not in sys.path:
     sys.path.insert(0, str(robowin_root))
 
@@ -38,10 +38,103 @@ import numpy as np
 from pathlib import Path
 from scipy.spatial.transform import Rotation as R
 import json
+import re
+import shutil
+import tempfile
 from pathlib import Path
 
 from evaluation.robotwin.websocket_client_policy import WebsocketClientPolicy
 from evaluation.robotwin.test_render import Sapien_TEST
+
+PRED_VIDEO_RE = re.compile(r"^pred_video_(\d+)\.mp4$")
+
+
+def _resolve_shared_path(path_value, out_dir):
+    if not path_value:
+        return None
+    path = Path(path_value)
+    if path.exists():
+        return path
+    parts = path.parts
+    for anchor in ("visualization", "libero_eval", "robomme_eval", "robotwin_eval"):
+        if anchor in parts:
+            idx = parts.index(anchor)
+            candidate = Path(out_dir).joinpath(*parts[idx:])
+            if candidate.exists():
+                return candidate
+    return path
+
+
+def _copy_prediction_video(server_video_path, out_dir, run_dir):
+    src = _resolve_shared_path(server_video_path, out_dir)
+    if src is None or not src.exists():
+        if server_video_path:
+            print(f"[warn] prediction video not found: {server_video_path}")
+        return None
+    dst = Path(run_dir) / src.name
+    try:
+        if src.resolve() != dst.resolve():
+            shutil.copy2(src, dst)
+    except Exception as exc:
+        print(f"[warn] failed to copy {src} -> {dst}: {exc}")
+        return None
+    return dst.name
+
+
+def _copy_prediction_videos_from_visualization(visualization_dir, out_dir, run_dir, seen):
+    vis_dir = _resolve_shared_path(visualization_dir, out_dir)
+    if vis_dir is None or not vis_dir.exists():
+        return []
+    copied = []
+    for src in sorted(vis_dir.glob("pred_video_*.mp4")):
+        if src.name in seen:
+            continue
+        name = _copy_prediction_video(src, out_dir, run_dir)
+        if name is not None:
+            seen.add(name)
+            copied.append(name)
+    return copied
+
+
+def _ffconcat_quote(path):
+    text = str(Path(path).resolve())
+    return "'" + text.replace("\\", "\\\\").replace("'", "'\\''") + "'"
+
+
+def _concat_prediction_videos(run_dir, output_name="pred_video_all.mp4"):
+    run_dir = Path(run_dir)
+    videos = [p for p in run_dir.glob("pred_video_*.mp4") if PRED_VIDEO_RE.match(p.name)]
+    if not videos:
+        return None
+    videos.sort(key=lambda p: int(PRED_VIDEO_RE.match(p.name).group(1)))
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        print("[warn] ffmpeg not found; skip pred_video_all.mp4")
+        return None
+
+    output_path = run_dir / output_name
+    tmp_output = output_path.with_name(output_path.name + ".tmp.mp4")
+    list_path = None
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".ffconcat", delete=False, encoding="utf-8") as handle:
+            list_path = Path(handle.name)
+            for video in videos:
+                handle.write(f"file {_ffconcat_quote(video)}\n")
+        cmd = [
+            ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+            "-f", "concat", "-safe", "0", "-i", str(list_path),
+            "-c", "copy", str(tmp_output),
+        ]
+        subprocess.run(cmd, check=True)
+        os.replace(tmp_output, output_path)
+        return output_path.name
+    except Exception as exc:
+        print(f"[warn] failed to concat prediction videos in {run_dir}: {exc}")
+        return None
+    finally:
+        if list_path is not None:
+            list_path.unlink(missing_ok=True)
+        tmp_output.unlink(missing_ok=True)
 
 def write_json(data: dict, fpath: Path) -> None:
     """Write data to a JSON file.
@@ -539,8 +632,23 @@ def eval_policy(task_name,
         succ = False
 
         prompt = TASK_ENV.get_instruction()
-        ret = model.infer(dict(reset = True, prompt=prompt, save_visualization=save_visualization))
-        
+        reset_meta = model.infer(dict(
+            reset=True,
+            prompt=prompt,
+            task_name=task_name,
+            env_id=task_name,
+            save_visualization=save_visualization,
+        ))
+        if not isinstance(reset_meta, dict):
+            reset_meta = {}
+
+        prompt_slug = prompt.replace(' ', '_')
+        vis_dir = Path(args['save_root']) / f'stseed-{st_seed}' / 'visualization' / task_name
+        run_dir = vis_dir / f"ep{TASK_ENV.test_num:04d}_{prompt_slug}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        (run_dir / "instruction.txt").write_text(prompt + "\n", encoding="utf-8")
+        copied_pred_names = set()
+
         first = True
         full_obs_list = []
         gen_video_list = []
@@ -560,8 +668,12 @@ def eval_policy(task_name,
                 observation = TASK_ENV.get_obs()
                 first_obs = format_obs(observation, prompt)
 
-            ret = model.infer(dict(obs=first_obs, prompt=prompt, save_visualization=save_visualization, video_guidance_scale=video_guidance_scale, action_guidance_scale=action_guidance_scale)) #(TASK_ENV, model, observation)
+            ret = model.infer(dict(obs=first_obs, prompt=prompt, task_name=task_name, env_id=task_name, save_visualization=save_visualization, video_guidance_scale=video_guidance_scale, action_guidance_scale=action_guidance_scale)) #(TASK_ENV, model, observation)
             action = ret['action']
+            if save_visualization and isinstance(ret, dict):
+                name = _copy_prediction_video(ret.get('video_path'), args['save_root'], run_dir)
+                if name is not None:
+                    copied_pred_names.add(name)
             if 'video' in ret:
                 imagined_video = ret['video']
                 gen_video_list.append(imagined_video)
@@ -605,23 +717,51 @@ def eval_policy(task_name,
                     
             first = False
 
-            model.infer(dict(obs = key_frame_list, compute_kv_cache=True, imagine=False, save_visualization=save_visualization, state=action))
+            model.infer(dict(obs=key_frame_list, compute_kv_cache=True, imagine=False, task_name=task_name, env_id=task_name, save_visualization=save_visualization, state=action))
   
             if TASK_ENV.eval_success:
                 succ = True
                 break
       
 
-        vis_dir = Path(args['save_root']) / f'stseed-{st_seed}' / 'visualization' / task_name
-        vis_dir.mkdir(parents=True, exist_ok=True)
-        video_name = f"{TASK_ENV.test_num}_{prompt.replace(' ', '_')}_{succ}.mp4"
-        out_img_file = vis_dir / video_name
+        video_name = f"{TASK_ENV.test_num}_{prompt_slug}_{succ}.mp4"
+        out_img_file = run_dir / video_name
         save_comparison_video(
             real_obs_list=full_obs_list,
             imagined_video=None, #gen_video_list,
             action_history=full_action_history,
             save_path=str(out_img_file),
             fps=15 # Suggest adjusting fps based on simulation step
+        )
+
+        if save_visualization:
+            _copy_prediction_videos_from_visualization(
+                reset_meta.get("visualization_dir"),
+                args['save_root'],
+                run_dir,
+                copied_pred_names,
+            )
+            pred_video_all = _concat_prediction_videos(run_dir)
+        else:
+            pred_video_all = None
+
+        (run_dir / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "task_name": task_name,
+                    "test_num": int(TASK_ENV.test_num),
+                    "seed": int(now_seed),
+                    "instruction": prompt,
+                    "success": bool(succ),
+                    "client_video": video_name,
+                    "prediction_video_all": pred_video_all,
+                    "server_visualization_dir": reset_meta.get("visualization_dir"),
+                    "server_run_name": reset_meta.get("run_name"),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
         )
         if TASK_ENV.eval_video_path is not None:
             TASK_ENV._del_eval_video_ffmpeg()
